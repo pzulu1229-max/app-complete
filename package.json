@@ -1,7 +1,29 @@
 {
-  "type": "commonjs",
+  "name": "event-monolith-app",
+  "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "dev": "node src/express-server.js",
-    "start": "node src/express-server.js"
+    "start": "prisma generate && node src/final-server.js",
+    "dev": "prisma generate && node src/final-server.js",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate dev",
+    "build": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcrypt": "^5.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.0",
+    "prisma": "^5.0.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "nodemon": "^3.1.10"
   }
 }
