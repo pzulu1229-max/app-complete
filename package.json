@@ -1,0 +1,7 @@
+{
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node src/express-server.js",
+    "start": "node src/express-server.js"
+  }
+}

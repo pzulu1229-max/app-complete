@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: event-monolith-app
+    env: node
+    plan: free
+    buildCommand: bun install && bun run db:generate && bun run build
+    startCommand: bun run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: event-monolith-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
