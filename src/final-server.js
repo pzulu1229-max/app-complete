@@ -5,10 +5,11 @@ import jwt from 'jsonwebtoken';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { PrismaClient } from '@prisma/client';
+import notificationService from './services/notification.service.js';
 
 const prisma = new PrismaClient();
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 10000;
 
 // Middleware
 app.use(cors());
@@ -21,7 +22,7 @@ const swaggerOptions = {
     info: {
       title: 'Event Management API',
       version: '1.0.0',
-      description: 'API for managing events, users, and RSVPs',
+      description: 'API for managing events, users, and RSVPs with Observer Pattern notifications',
     },
     servers: [
       {
@@ -72,6 +73,14 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Organizer middleware
+const requireOrganizer = (req, res, next) => {
+  if (req.user.role !== 'ORGANIZER' && req.user.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Organizer access required' });
+  }
+  next();
+};
+
 // Basic health check route
 /**
  * @swagger
@@ -85,7 +94,8 @@ const requireAdmin = (req, res, next) => {
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Event Management API Server is running!',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    observers: notificationService.getObservers()
   });
 });
 
@@ -114,6 +124,8 @@ app.get('/', (req, res) => {
  *               role:
  *                 type: string
  *                 enum: [ADMIN, ORGANIZER, ATTENDEE]
+ *               name:
+ *                 type: string
  *     responses:
  *       201:
  *         description: User created successfully
@@ -122,7 +134,7 @@ app.get('/', (req, res) => {
  */
 app.post('/api/register', async (req, res) => {
   try {
-    const { email, password, role = 'ATTENDEE' } = req.body;
+    const { email, password, role = 'ATTENDEE', name = 'User' } = req.body;
     
     // Validation
     if (!email || !password) {
@@ -154,6 +166,11 @@ app.post('/api/register', async (req, res) => {
       }
     });
     
+    // Notify observers about user registration (NON-BLOCKING)
+    notificationService.notifyUserRegistered(email, name)
+      .then(() => console.log('✅ User registration notifications sent'))
+      .catch(err => console.error('❌ User registration notifications failed:', err));
+    
     // Generate JWT token
     const token = jwt.sign(
       { 
@@ -173,7 +190,8 @@ app.post('/api/register', async (req, res) => {
         role: user.role,
         createdAt: user.createdAt
       },
-      token
+      token,
+      notification: 'Welcome email sent via observer pattern'
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -352,7 +370,7 @@ app.get('/api/events', async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-app.post('/api/events', authenticateToken, async (req, res) => {
+app.post('/api/events', authenticateToken, requireOrganizer, async (req, res) => {
   try {
     const { title, description, date, location } = req.body;
     
@@ -379,10 +397,128 @@ app.post('/api/events', authenticateToken, async (req, res) => {
         }
       }
     });
+
+    // Get user email for notification
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { email: true }
+    });
+
+    // Notify observers about event creation (NON-BLOCKING)
+    if (user) {
+      notificationService.notifyEventCreated(user.email, title, 'Organizer')
+        .then(() => console.log('✅ Event creation notifications sent'))
+        .catch(err => console.error('❌ Event creation notifications failed:', err));
+    }
     
-    res.status(201).json(event);
+    res.status(201).json({
+      ...event,
+      notification: 'Event creation notifications sent via observer pattern'
+    });
   } catch (error) {
     console.error('Create event error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update event endpoint
+/**
+ * @swagger
+ * /api/events/{id}:
+ *   put:
+ *     summary: Update an event
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *               location:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Event updated successfully
+ *       404:
+ *         description: Event not found
+ *       403:
+ *         description: Access denied
+ */
+app.put('/api/events/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, date, location } = req.body;
+    
+    // Check if event exists and user has permission
+    const existingEvent = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true
+          }
+        }
+      }
+    });
+    
+    if (!existingEvent) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    // Check if user is organizer or admin
+    if (existingEvent.organizerId !== req.user.userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const event = await prisma.event.update({
+      where: { id },
+      data: {
+        ...(title && { title }),
+        ...(description && { description }),
+        ...(date && { date: new Date(date) }),
+        ...(location && { location })
+      },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    // Notify observers about event update (NON-BLOCKING)
+    notificationService.notifyEventUpdated(existingEvent.organizer.email, title, 'Organizer')
+      .then(() => console.log('✅ Event update notifications sent'))
+      .catch(err => console.error('❌ Event update notifications failed:', err));
+    
+    res.json({
+      ...event,
+      notification: 'Event update notifications sent via observer pattern'
+    });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    console.error('Update event error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -425,8 +561,19 @@ app.patch('/api/events/:id/approve', authenticateToken, requireAdmin, async (req
         }
       }
     });
+
+    // Notify observers about event approval (NON-BLOCKING)
+    if (event.organizer.email) {
+      notificationService.notifyEventApproved(event.organizer.email, event.title, 'Organizer')
+        .then(() => console.log('✅ Event approval notifications sent'))
+        .catch(err => console.error('❌ Event approval notifications failed:', err));
+    }
     
-    res.json({ message: 'Event approved', event });
+    res.json({ 
+      message: 'Event approved', 
+      event,
+      notification: 'Event approval notifications sent via observer pattern'
+    });
   } catch (error) {
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Event not found' });
@@ -515,8 +662,25 @@ app.post('/api/events/:id/rsvp', authenticateToken, async (req, res) => {
         }
       }
     });
+
+    // Get user email for notification
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { email: true }
+    });
+
+    // Notify observers about RSVP (NON-BLOCKING)
+    if (user) {
+      notificationService.notifyRSVPCreated(user.email, event.title, status, 'Attendee')
+        .then(() => console.log('✅ RSVP notifications sent'))
+        .catch(err => console.error('❌ RSVP notifications failed:', err));
+    }
     
-    res.json({ message: 'RSVP updated', rsvp });
+    res.json({ 
+      message: 'RSVP updated', 
+      rsvp,
+      notification: 'RSVP notifications sent via observer pattern'
+    });
   } catch (error) {
     console.error('RSVP error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -613,6 +777,24 @@ app.get('/api/me', authenticateToken, async (req, res) => {
   }
 });
 
+// Get active observers (for debugging)
+/**
+ * @swagger
+ * /api/observers:
+ *   get:
+ *     summary: Get active observers
+ *     responses:
+ *       200:
+ *         description: List of active observers
+ */
+app.get('/api/observers', (req, res) => {
+  res.json({
+    observers: notificationService.getObservers(),
+    pattern: 'Observer Pattern Implementation',
+    description: 'Email notifications are sent automatically via observers'
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -628,6 +810,7 @@ app.use((req, res) => {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
   console.log(`Swagger docs available at http://localhost:${port}/api-docs`);
+  console.log(`Active observers:`, notificationService.getObservers());
 });
 
 // Graceful shutdown
