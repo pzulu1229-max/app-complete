@@ -18,7 +18,7 @@ export class EventSubject {
   }
 
   async notifyObservers(eventType, data) {
-    console.log(`í´” Notifying ${this.observers.length} observers for event: ${eventType}`);
+    console.log(`ðŸ”” Notifying ${this.observers.length} observers for event: ${eventType}`);
     
     const notifications = this.observers.map(async (observer) => {
       try {
