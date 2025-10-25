@@ -13,7 +13,8 @@ export class EmailObserver extends Observer {
       // Create a test account on Ethereal (no credentials needed)
       const testAccount = await nodemailer.createTestAccount();
       
-      this.transporter = nodemailer.createTransporter({
+      // CORRECTED: createTransport (not createTransporter)
+      this.transporter = nodemailer.createTransport({
         host: 'smtp.ethereal.email',
         port: 587,
         secure: false,
@@ -24,7 +25,7 @@ export class EmailObserver extends Observer {
       });
 
       console.log('âœ… EmailObserver initialized with Ethereal test account');
-      console.log('ğŸ“§ Test account:', testAccount.user);
+      console.log('í³§ Test account:', testAccount.user);
       
     } catch (error) {
       console.error('âŒ Failed to initialize EmailObserver:', error);
@@ -32,7 +33,7 @@ export class EmailObserver extends Observer {
   }
 
   async update(eventType, data) {
-    console.log(`ğŸ“¨ EmailObserver handling event: ${eventType}`);
+    console.log(`í³¨ EmailObserver handling event: ${eventType}`);
     
     switch (eventType) {
       case 'USER_REGISTERED':
@@ -64,10 +65,10 @@ export class EmailObserver extends Observer {
     const mailOptions = {
       from: '"Event Management App" <noreply@eventapp.com>',
       to: userEmail,
-      subject: 'Welcome to Event Management App! ğŸ‰',
+      subject: 'Welcome to Event Management App! í¾‰',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-          <h1 style="color: #333; text-align: center;">Welcome, ${userName}! ğŸ‘‹</h1>
+          <h1 style="color: #333; text-align: center;">Welcome, ${userName}! í±‹</h1>
           <p style="color: #666; line-height: 1.6;">Thank you for registering with our Event Management Application.</p>
           <p style="color: #666; line-height: 1.6;">You can now:</p>
           <ul style="color: #666;">
@@ -93,10 +94,10 @@ export class EmailObserver extends Observer {
     const mailOptions = {
       from: '"Event Management App" <noreply@eventapp.com>',
       to: userEmail,
-      subject: `Event Created: ${eventTitle} ğŸ“…`,
+      subject: `Event Created: ${eventTitle} í³…`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-          <h2 style="color: #333;">Event Created Successfully! ğŸŠ</h2>
+          <h2 style="color: #333;">Event Created Successfully! í¾Š</h2>
           <p style="color: #666; line-height: 1.6;">Hello ${userName},</p>
           <p style="color: #666; line-height: 1.6;">Your event "<strong>${eventTitle}</strong>" has been created successfully.</p>
           <p style="color: #666; line-height: 1.6;">It is currently pending approval and will be visible to other users once approved by an administrator.</p>
@@ -122,7 +123,7 @@ export class EmailObserver extends Observer {
       subject: `Event Approved: ${eventTitle} âœ…`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-          <h2 style="color: #333;">Event Approved! ğŸ‰</h2>
+          <h2 style="color: #333;">Event Approved! í¾‰</h2>
           <p style="color: #666; line-height: 1.6;">Hello ${userName},</p>
           <p style="color: #666; line-height: 1.6;">Great news! Your event "<strong>${eventTitle}</strong>" has been approved by an administrator.</p>
           <p style="color: #666; line-height: 1.6;">It is now visible to all users and they can RSVP to attend.</p>
@@ -142,7 +143,7 @@ export class EmailObserver extends Observer {
     
     const statusEmojis = {
       'GOING': 'âœ…',
-      'MAYBE': 'ğŸ¤”',
+      'MAYBE': 'í´”',
       'NOT_GOING': 'âŒ'
     };
 
@@ -193,9 +194,9 @@ export class EmailObserver extends Observer {
       const previewUrl = nodemailer.getTestMessageUrl(info);
       
       console.log(`âœ… ${emailType} sent successfully!`);
-      console.log('ğŸ“§ Message ID:', info.messageId);
-      console.log('ğŸ‘€ Preview URL:', previewUrl);
-      console.log('ğŸ“¨ To:', mailOptions.to);
+      console.log('í³§ Message ID:', info.messageId);
+      console.log('í±€ Preview URL:', previewUrl);
+      console.log('í³¨ To:', mailOptions.to);
       
       return {
         success: true,
