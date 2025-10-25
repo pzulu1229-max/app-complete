@@ -26,6 +26,10 @@ const swaggerOptions = {
     },
     servers: [
       {
+        url: `https://event-monolith-app-oa9j.onrender.com`,
+        description: 'Production server',
+      },
+      {
         url: `http://localhost:${port}`,
         description: 'Development server',
       },
