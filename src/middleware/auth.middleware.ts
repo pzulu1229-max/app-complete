@@ -22,7 +22,7 @@ export const authMiddleware = new Elysia()
 
 // Role-based authorization middleware
 export const requireRole = (allowedRoles: string[]) => {
-  return new Elysia().derive({ as: 'scoped' }, ({ user, set }) => {
+  return new Elysia().derive({ as: 'scoped' }, (context: any) => {
     if (!user || !allowedRoles.includes(user.role)) {
       throw new AppError(403, 'Insufficient permissions');
     }
