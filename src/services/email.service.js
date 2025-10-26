@@ -21,18 +21,11 @@ export class EmailObserver extends Observer {
         auth: {
           user: testAccount.user,
           pass: testAccount.pass
-        },
-        // ADD THESE TIMEOUT SETTINGS:
-        connectionTimeout: 30000, // 30 seconds
-        greetingTimeout: 30000,
-        socketTimeout: 30000,
-        logger: true, // Enable logging
-        debug: true // Enable debug output
+        }
       });
 
       console.log('✅ EmailObserver initialized with Ethereal test account');
       console.log('📧 Test account:', testAccount.user);
-      console.log('🔧 SMTP configured with 30s timeouts');
       
     } catch (error) {
       console.error('❌ Failed to initialize EmailObserver:', error);
@@ -190,40 +183,32 @@ export class EmailObserver extends Observer {
     await this.sendEmail(mailOptions, 'Event Updated Notification');
   }
 
-  async sendEmail(mailOptions, emailType, retries = 2) {
+  async sendEmail(mailOptions, emailType) {
     if (!this.transporter) {
       console.warn('⚠️ Email transporter not ready, skipping email send');
       return;
     }
 
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const info = await this.transporter.sendMail(mailOptions);
-        const previewUrl = nodemailer.getTestMessageUrl(info);
-        
-        console.log(`✅ ${emailType} sent successfully!`);
-        console.log('📧 Message ID:', info.messageId);
-        console.log('👀 Preview URL:', previewUrl);
-        console.log('📨 To:', mailOptions.to);
-        
-        return {
-          success: true,
-          messageId: info.messageId,
-          previewUrl: previewUrl
-        };
-      } catch (error) {
-        console.error(`❌ Attempt ${attempt}/${retries} - Error sending ${emailType}:`, error.message);
-        
-        if (attempt === retries) {
-          return {
-            success: false,
-            error: error.message
-          };
-        }
-        
-        // Wait 2 seconds before retry
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      
+      console.log(`✅ ${emailType} sent successfully!`);
+      console.log('📧 Message ID:', info.messageId);
+      console.log('👀 Preview URL:', previewUrl);
+      console.log('📨 To:', mailOptions.to);
+      
+      return {
+        success: true,
+        messageId: info.messageId,
+        previewUrl: previewUrl
+      };
+    } catch (error) {
+      console.error(`❌ Error sending ${emailType}:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 }
